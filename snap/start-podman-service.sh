@@ -8,4 +8,4 @@ chmod 700 "$SOCKET_DIR"
 
 # Run the podman API service, listening on the unix socket inside the exposed directory.
 # The --time=0 flag keeps the service running indefinitely rather than timing out.
-exec $SNAP/usr/bin/podman system service --time=0 "unix://$SOCKET_DIR/podman.sock"
+exec $SNAP/snap/podman-wrapper.sh system service --time=0 "unix://$SOCKET_DIR/podman.sock"

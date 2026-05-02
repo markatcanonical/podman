@@ -17,9 +17,7 @@ grade: devel
 
 apps:
   podman:
-    command: usr/bin/podman
-    environment:
-      CONTAINERS_CONF: $SNAP/etc/containers.conf
+    command: snap/podman-wrapper.sh
 
   service:
     command: snap/start-podman-service.sh
@@ -27,8 +25,6 @@ apps:
     daemon-scope: user
     install-mode: disable
     restart-condition: on-failure
-    environment:
-      CONTAINERS_CONF: $SNAP/etc/containers.conf
 
 slots:
   podman-socket:
@@ -130,23 +126,17 @@ parts:
       make
       make install PREFIX=$SNAPCRAFT_PART_INSTALL/usr
 
-  slirp4netns:
-    plugin: autotools
-    source: https://github.com/rootless-containers/slirp4netns.git
-    source-tag: 'v1.3.3'
+  passt:
+    plugin: make
+    source: https://passt.top/passt
+    source-type: git
+    source-tag: '2026_01_20.386b5f5'
     build-packages:
       - make
       - gcc
-      - libglib2.0-dev
-      - libcap-dev
-      - libseccomp-dev
-      - libslirp-dev
-      - autoconf
-      - automake
-    stage-packages:
-      - libslirp0
-    autotools-configure-parameters:
-      - --prefix=/usr
+    override-build: |
+      make
+      make install DESTDIR=$SNAPCRAFT_PART_INSTALL prefix=/usr
 
   netavark:
     plugin: make
@@ -179,3 +169,4 @@ parts:
     source: snap/
     organize:
       start-podman-service.sh: snap/start-podman-service.sh
+      podman-wrapper.sh: snap/podman-wrapper.sh
