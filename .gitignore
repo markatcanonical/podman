@@ -5,6 +5,7 @@
 /conmon/
 contrib/spec/podman.spec
 contrib/systemd/system/*.service
+*.snap
 *.coverprofile
 coverprofile
 /.coverage

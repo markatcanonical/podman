@@ -1,0 +1,149 @@
+name: podman
+base: core26
+build-base: devel
+version: '5.4-git'
+summary: Daemonless container engine for OCI containers
+description: |
+  Podman is a daemonless, open source, Linux native tool designed to make it easy to find, run,
+  build, share and deploy applications using Open Containers Initiative (OCI) Containers and
+  Container Images.
+  
+  This snap exposes the rootless Podman API socket via the `podman-socket` content interface,
+  allowing other snaps to easily interact with the Podman daemon.
+
+confinement: classic
+grade: devel
+
+apps:
+  podman:
+    command: usr/bin/podman
+    environment:
+      # Explicitly set the helper binaries directory so Podman can find the bundled netavark/crun
+      PODMAN_HELPER_BINARIES_DIR: $SNAP/usr/bin:$SNAP/usr/libexec/podman
+
+  service:
+    command: snap/start-podman-service.sh
+    daemon: simple
+    daemon-scope: user
+    install-mode: disable
+    restart-condition: on-failure
+
+slots:
+  podman-socket:
+    interface: content
+    content: podman-socket
+    read:
+      - $SNAP_USER_COMMON/socket
+    write:
+      - $SNAP_USER_COMMON/socket
+
+parts:
+  podman:
+    plugin: make
+    source: .
+    build-packages:
+      - golang-go
+      - pkg-config
+      - libseccomp-dev
+      - libapparmor-dev
+      - libselinux1-dev
+      - libglib2.0-dev
+      - btrfs-progs
+      - libbtrfs-dev
+      - libsystemd-dev
+      - libgpgme-dev
+      - go-md2man
+      - iptables
+    build-environment:
+      - CGO_ENABLED: '1'
+      - EXTRA_LDFLAGS: '-X go.podman.io/common/pkg/config.additionalHelperBinariesDir=$SNAP/usr/libexec/podman'
+    stage-packages:
+      - libgpgme45
+    override-build: |
+      make binaries
+      make install.bin install.remote PREFIX=$SNAPCRAFT_PART_INSTALL/usr
+
+  crun:
+    plugin: autotools
+    source: https://github.com/containers/crun.git
+    source-tag: '1.27.1' # Pinned to the latest stable version
+    build-packages:
+      - python3
+      - git
+      - gcc
+      - libc6-dev
+      - libcap-dev
+      - libseccomp-dev
+      - libyajl-dev
+      - go-md2man
+      - libtool
+      - autoconf
+      - automake
+      - pkg-config
+      - libsystemd-dev
+    stage-packages:
+      - libyajl2
+    autotools-configure-parameters:
+      - --prefix=/usr
+
+  conmon:
+    plugin: make
+    source: https://github.com/containers/conmon.git
+    source-tag: 'v2.2.1'
+    build-packages:
+      - pkg-config
+      - libglib2.0-dev
+      - libseccomp-dev
+    override-build: |
+      make
+      make install PREFIX=$SNAPCRAFT_PART_INSTALL/usr
+
+  slirp4netns:
+    plugin: autotools
+    source: https://github.com/rootless-containers/slirp4netns.git
+    source-tag: 'v1.3.3'
+    build-packages:
+      - make
+      - gcc
+      - libglib2.0-dev
+      - libcap-dev
+      - libseccomp-dev
+      - libslirp-dev
+      - autoconf
+      - automake
+    stage-packages:
+      - libslirp0
+    autotools-configure-parameters:
+      - --prefix=/usr
+
+  netavark:
+    plugin: make
+    source: https://github.com/containers/netavark.git
+    source-tag: 'v1.17.2'
+    build-packages:
+      - rustc
+      - cargo
+      - protobuf-compiler
+      - pkg-config
+    override-build: |
+      make
+      mkdir -p $SNAPCRAFT_PART_INSTALL/usr/libexec/podman/
+      cp bin/netavark $SNAPCRAFT_PART_INSTALL/usr/libexec/podman/
+
+  aardvark-dns:
+    plugin: make
+    source: https://github.com/containers/aardvark-dns.git
+    source-tag: 'v1.17.1'
+    build-packages:
+      - rustc
+      - cargo
+    override-build: |
+      make
+      mkdir -p $SNAPCRAFT_PART_INSTALL/usr/libexec/podman/
+      cp bin/aardvark-dns $SNAPCRAFT_PART_INSTALL/usr/libexec/podman/
+
+  wrapper:
+    plugin: dump
+    source: snap/
+    organize:
+      start-podman-service.sh: snap/start-podman-service.sh
