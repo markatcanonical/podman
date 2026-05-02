@@ -1,7 +1,7 @@
 name: podman
 base: core26
 build-base: devel
-version: '5.4-git'
+version: 'git'
 summary: Daemonless container engine for OCI containers
 description: |
   Podman is a daemonless, open source, Linux native tool designed to make it easy to find, run,
@@ -11,6 +11,7 @@ description: |
   This snap exposes the rootless Podman API socket via the `podman-socket` content interface,
   allowing other snaps to easily interact with the Podman daemon.
 
+adopt-info: podman
 confinement: classic
 grade: devel
 
@@ -18,8 +19,7 @@ apps:
   podman:
     command: usr/bin/podman
     environment:
-      # Explicitly set the helper binaries directory so Podman can find the bundled netavark/crun
-      PODMAN_HELPER_BINARIES_DIR: $SNAP/usr/bin:$SNAP/usr/libexec/podman
+      CONTAINERS_CONF: $SNAP/etc/containers.conf
 
   service:
     command: snap/start-podman-service.sh
@@ -27,6 +27,8 @@ apps:
     daemon-scope: user
     install-mode: disable
     restart-condition: on-failure
+    environment:
+      CONTAINERS_CONF: $SNAP/etc/containers.conf
 
 slots:
   podman-socket:
@@ -56,12 +58,42 @@ parts:
       - iptables
     build-environment:
       - CGO_ENABLED: '1'
-      - EXTRA_LDFLAGS: '-X go.podman.io/common/pkg/config.additionalHelperBinariesDir=$SNAP/usr/libexec/podman'
     stage-packages:
       - libgpgme45
     override-build: |
+      craftctl default
       make binaries
       make install.bin install.remote PREFIX=$SNAPCRAFT_PART_INSTALL/usr
+    override-pull: |
+      # Pull the source using snapcraft.
+      craftctl default
+
+      # Set defaults.
+      grade=devel
+      full_tag="$(git describe --tags --abbrev=0 2>/dev/null)" || true
+      hash="$(git rev-parse --short HEAD 2>/dev/null)"
+
+      # Remove leading 'v' from tag for the version string.
+      tag="${full_tag#v}"
+
+      # Check for tagged version.
+      if [ -n "$full_tag" ]; then
+        count="$(git rev-list "$full_tag".. --count 2>/dev/null)"
+        if [ "$count" -eq 0 ]; then
+          version="$tag"
+          grade=stable
+        else
+          version="$tag+git$count.$hash"
+        fi
+      else
+        count="$(git rev-list HEAD --count 2>/dev/null)"
+        version="0+git$count.$hash"
+      fi
+
+      # Relay back to snapcraft.
+      craftctl set grade="$grade"
+      craftctl set version="$version"
+
 
   crun:
     plugin: autotools
