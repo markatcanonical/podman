@@ -142,7 +142,6 @@ parts:
   netavark:
     plugin: make
     source: https://github.com/containers/netavark.git
-    source-tag: 'v1.17.2'
     build-packages:
       - rustc
       - cargo
@@ -156,7 +155,6 @@ parts:
   aardvark-dns:
     plugin: make
     source: https://github.com/containers/aardvark-dns.git
-    source-tag: 'v1.17.1'
     build-packages:
       - rustc
       - cargo
